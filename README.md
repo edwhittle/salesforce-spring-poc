@@ -21,6 +21,7 @@ For a dataset of 400K products:
 - `GET /api/products/supplier/{supplier}` - Get products by single supplier ID
 - `GET /api/products/suppliers/{suppliers}` - Get products by multiple supplier IDs (comma-separated)
 - `GET /api/products/suppliers?suppliers={suppliers}` - Get products by multiple supplier IDs (query parameter)
+- `GET /api/productBySupplier/{supplierIds}?brandSearch={brand}&itemDescriptionSearch={description}&limit={limit}` - **Advanced supplier search with fuzzy filters**
 
 ### Search Endpoints
 - `GET /api/search/lucene?query=supplierId&limit=50` - Fast supplier search (primary use case)
@@ -109,16 +110,19 @@ java -Xms2g -Xmx6g -jar salesforce-poc-0.0.1-SNAPSHOT.jar
 curl "http://localhost:8080/api/products/supplier/12345"
 ```
 
-### Multiple Supplier Search
+### Multiple Supplier Search with Filters
 ```bash
-# Using path variable (recommended for short lists)
-curl "http://localhost:8080/api/products/suppliers/12345,67890,11111"
+# Advanced search: suppliers + brand + item description (fuzzy search)
+curl "http://localhost:8080/api/productBySupplier/959609,980801?brandSearch=Coles&itemDescriptionSearch=FREE&limit=10"
 
-# Using query parameter (better for long lists or special characters)
-curl "http://localhost:8080/api/products/suppliers?suppliers=12345,67890,11111"
+# Search by supplier and brand only
+curl "http://localhost:8080/api/productBySupplier/959609?brandSearch=Taste&limit=10"
 
-# With spaces (automatically trimmed)
-curl "http://localhost:8080/api/products/suppliers?suppliers=12345, 67890, 11111"
+# Search by supplier and description only (fuzzy search)
+curl "http://localhost:8080/api/productBySupplier/959609?itemDescriptionSearch=CRACKER&limit=10"
+
+# Just supplier search (no filters)
+curl "http://localhost:8080/api/productBySupplier/959609?limit=5"
 ```
 
 ### General Search (all fields)

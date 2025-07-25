@@ -11,10 +11,7 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.queryparser.classic.QueryParser;
-import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.search.ScoreDoc;
-import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.search.*;
 import org.apache.lucene.store.FSDirectory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -92,7 +89,7 @@ public class LuceneSearchService {
     }
 
     /**
-     * Index a single product - optimized for supplier-based searches
+     * Index a single product - optimized for supplier-based searches with brand and description support
      */
     public void indexProduct(Product product) throws IOException {
         Document doc = new Document();
@@ -104,17 +101,26 @@ public class LuceneSearchService {
         String supplierId = product.getSupplier() != null ? product.getSupplier() : "";
         doc.add(new TextField("supplier", supplierId, Field.Store.YES));
         
+        // Secondary searchable fields for fuzzy search
+        String itemDescription = product.getItemDescription() != null ? product.getItemDescription() : "";
+        String digitalBrandName = product.getDigitalBrandName() != null ? product.getDigitalBrandName() : "";
+        String subBrandName = product.getSubBrandName() != null ? product.getSubBrandName() : "";
+        
+        doc.add(new TextField("itemDescription", itemDescription, Field.Store.YES));
+        doc.add(new TextField("digitalBrandName", digitalBrandName, Field.Store.YES));
+        doc.add(new TextField("subBrandName", subBrandName, Field.Store.YES));
+        
+        // Combined brand field for easier searching
+        String combinedBrand = String.join(" ", digitalBrandName, subBrandName).trim();
+        doc.add(new TextField("brand", combinedBrand, Field.Store.YES));
+        
         // Store other essential fields for retrieval but don't heavily index them
         doc.add(new StoredField("supplierGroupId", product.getSupplierGroupId() != null ? product.getSupplierGroupId() : ""));
-        doc.add(new StoredField("itemDescription", product.getItemDescription() != null ? product.getItemDescription() : ""));
         doc.add(new StoredField("smktsMerchCategory", product.getSmktsMerchCategory() != null ? product.getSmktsMerchCategory() : ""));
         doc.add(new StoredField("liqMerchCategory", product.getLiqMerchCategory() != null ? product.getLiqMerchCategory() : ""));
-        doc.add(new StoredField("digitalBrandName", product.getDigitalBrandName() != null ? product.getDigitalBrandName() : ""));
-        doc.add(new StoredField("subBrandName", product.getSubBrandName() != null ? product.getSubBrandName() : ""));
         
         // Secondary searchable fields (lighter indexing)
         doc.add(new TextField("productId", product.getProductId(), Field.Store.YES));
-        doc.add(new TextField("itemDescription", product.getItemDescription() != null ? product.getItemDescription() : "", Field.Store.NO));
         
         // Create a supplier-focused combined field for multi-supplier searches
         String supplierText = String.join(" ", 
@@ -196,8 +202,90 @@ public class LuceneSearchService {
     }
 
     /**
-     * Search in specific field
+     * Search products by supplier ID(s) with optional brand and item description filters
      */
+    public List<String> searchProductsBySupplierWithFilters(String supplierIds, String brandSearch, 
+                                                           String itemDescriptionSearch, int maxResults) throws Exception {
+        if (supplierIds == null || supplierIds.trim().isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        IndexReader reader = DirectoryReader.open(indexDirectory);
+        IndexSearcher searcher = new IndexSearcher(reader);
+        
+        BooleanQuery.Builder queryBuilder = new BooleanQuery.Builder();
+        
+        // Add supplier query (required)
+        QueryParser supplierParser = new QueryParser("supplier", analyzer);
+        String supplierQueryString;
+        if (supplierIds.contains(",")) {
+            // Multiple suppliers: "supplier1 OR supplier2 OR supplier3"
+            String[] suppliers = supplierIds.split(",");
+            StringBuilder supplierQueryBuilder = new StringBuilder();
+            for (int i = 0; i < suppliers.length; i++) {
+                if (i > 0) supplierQueryBuilder.append(" OR ");
+                supplierQueryBuilder.append("\"").append(suppliers[i].trim()).append("\"");
+            }
+            supplierQueryString = supplierQueryBuilder.toString();
+        } else {
+            // Single supplier
+            supplierQueryString = "\"" + supplierIds.trim() + "\"";
+        }
+        Query supplierQuery = supplierParser.parse(supplierQueryString);
+        queryBuilder.add(supplierQuery, BooleanClause.Occur.MUST);
+        
+        // Add brand search if provided
+        if (brandSearch != null && !brandSearch.trim().isEmpty()) {
+            QueryParser brandParser = new QueryParser("brand", analyzer);
+            // Create fuzzy query for brand search
+            String fuzzyBrandQuery = createFuzzyQuery(brandSearch.trim());
+            Query brandQuery = brandParser.parse(fuzzyBrandQuery);
+            queryBuilder.add(brandQuery, BooleanClause.Occur.MUST);
+        }
+        
+        // Add item description search if provided (fuzzy search)
+        if (itemDescriptionSearch != null && !itemDescriptionSearch.trim().isEmpty()) {
+            QueryParser descParser = new QueryParser("itemDescription", analyzer);
+            // Create fuzzy query for item description
+            String fuzzyDescQuery = createFuzzyQuery(itemDescriptionSearch.trim());
+            Query descQuery = descParser.parse(fuzzyDescQuery);
+            queryBuilder.add(descQuery, BooleanClause.Occur.MUST);
+        }
+        
+        BooleanQuery finalQuery = queryBuilder.build();
+        TopDocs results = searcher.search(finalQuery, maxResults);
+        List<String> productIds = new ArrayList<>();
+        
+        for (ScoreDoc scoreDoc : results.scoreDocs) {
+            Document doc = searcher.doc(scoreDoc.doc);
+            productIds.add(doc.get("productId"));
+        }
+        
+        reader.close();
+        return productIds;
+    }
+
+    /**
+     * Create a fuzzy query string for better matching
+     */
+    private String createFuzzyQuery(String searchText) {
+        String[] terms = searchText.split("\\s+");
+        StringBuilder fuzzyQuery = new StringBuilder();
+        
+        for (int i = 0; i < terms.length; i++) {
+            if (i > 0) fuzzyQuery.append(" AND ");
+            String term = terms[i].trim();
+            if (term.length() > 4) {
+                // Use fuzzy search for longer terms with edit distance of 2
+                fuzzyQuery.append("(").append(term).append("~2 OR ").append(term).append("*)");
+            } else {
+                // Use wildcard for shorter terms
+                fuzzyQuery.append(term).append("*");
+            }
+        }
+        
+        return fuzzyQuery.toString();
+    }
     public List<String> searchProductsByField(String fieldName, String searchText, int maxResults) throws Exception {
         if (searchText == null || searchText.trim().isEmpty()) {
             return new ArrayList<>();
