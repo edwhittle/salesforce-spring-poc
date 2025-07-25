@@ -2,6 +2,7 @@ package com.example.salesforcepoc.service;
 
 import com.example.salesforcepoc.entity.Product;
 import com.example.salesforcepoc.common.QueryResults;
+import com.example.salesforcepoc.common.BrandCategoryResults;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -23,7 +24,9 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class LuceneSearchService {
