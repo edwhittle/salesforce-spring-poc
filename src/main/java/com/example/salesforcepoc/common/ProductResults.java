@@ -18,7 +18,7 @@ public final class ProductResults {
         return products;
     }
 
-    public Integer getTotalProductsCount() {
+    public Integer getTotalProducts() {
         return totalProducts;
     }
 }
