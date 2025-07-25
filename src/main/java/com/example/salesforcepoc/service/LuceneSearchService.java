@@ -1,6 +1,7 @@
 package com.example.salesforcepoc.service;
 
 import com.example.salesforcepoc.entity.Product;
+import com.example.salesforcepoc.common.QueryResults;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -204,10 +205,13 @@ public class LuceneSearchService {
     /**
      * Search products by supplier ID(s) with optional brand and item description filters
      */
-    public List<String> searchProductsBySupplierWithFilters(String supplierIds, String brandSearch, 
+    public QueryResults searchProductsBySupplierWithFilters(String supplierIds, String brandSearch, 
                                                            String itemDescriptionSearch, int maxResults) throws Exception {
         if (supplierIds == null || supplierIds.trim().isEmpty()) {
-            return new ArrayList<>();
+            return new QueryResults(
+                new ArrayList<>(),
+                0
+            );
         }
 
         IndexReader reader = DirectoryReader.open(indexDirectory);
@@ -253,6 +257,7 @@ public class LuceneSearchService {
         }
         
         BooleanQuery finalQuery = queryBuilder.build();
+        Integer matchingResultsCount = searcher.count(finalQuery);
         TopDocs results = searcher.search(finalQuery, maxResults);
         List<String> productIds = new ArrayList<>();
         
@@ -262,7 +267,9 @@ public class LuceneSearchService {
         }
         
         reader.close();
-        return productIds;
+
+        QueryResults queryResults = new QueryResults(productIds, matchingResultsCount);
+        return queryResults;
     }
 
     /**
