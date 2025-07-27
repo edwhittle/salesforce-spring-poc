@@ -18,6 +18,10 @@ For a dataset of 400K products:
 ### Product Management
 - `GET /api/productBySupplier/{supplierIds}?brandSearch={brand}&itemDescriptionSearch={description}&limit={limit}` - **Advanced supplier search with fuzzy filters**
 
+### Index Management
+- `POST /api/search/index/rebuild` - **Rebuild Index**
+- `GET /api/search/index/stats` - **Get Status of Lucene Index**
+
 ## Searchable Fields
 **Primary Index (Optimized for Performance):**
 - **supplier**: Supplier ID (primary search field - fastest performance)
