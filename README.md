@@ -6,9 +6,7 @@ This Spring Boot application provides fast search capabilities for a large produ
 ## Features
 - **Product Management**: Complete CRUD operations for products
 - **CSV Import**: Bulk import of products from CSV files
-- **Database Search**: Traditional SQL-based search across multiple fields
 - **Lucene Search**: High-performance full-text search with sub-second response times
-- **Performance Comparison**: Built-in tools to compare search method performance
 
 ## Performance Benefits
 For a dataset of 400K products:
@@ -18,21 +16,7 @@ For a dataset of 400K products:
 ## API Endpoints
 
 ### Product Management
-- `GET /api/products/supplier/{supplier}` - Get products by single supplier ID
-- `GET /api/products/suppliers/{suppliers}` - Get products by multiple supplier IDs (comma-separated)
-- `GET /api/products/suppliers?suppliers={suppliers}` - Get products by multiple supplier IDs (query parameter)
 - `GET /api/productBySupplier/{supplierIds}?brandSearch={brand}&itemDescriptionSearch={description}&limit={limit}` - **Advanced supplier search with fuzzy filters**
-
-### Search Endpoints
-- `GET /api/search/lucene?query=supplierId&limit=50` - Fast supplier search (primary use case)
-- `GET /api/search/supplier?supplierIds=12345,67890&limit=1000` - Optimized multi-supplier search
-- `GET /api/search/lucene/field?field=fieldName&query=searchTerm&limit=50` - Search specific field
-- `GET /api/search/database?query=searchTerm&limit=50` - Traditional database search
-- `GET /api/search/compare?query=searchTerm` - Compare both search methods
-
-### Index Management
-- `POST /api/search/index/rebuild` - Rebuild Lucene index
-- `GET /api/search/index/stats` - Get index statistics
 
 ## Searchable Fields
 **Primary Index (Optimized for Performance):**
@@ -63,29 +47,6 @@ mvn spring-boot:run
 - Build Lucene search index
 - Start web server on port 8080
 
-### 3. Test Search Performance
-```bash
-# Fast supplier search (primary use case)
-curl "http://localhost:8080/api/search/lucene?query=12345&limit=10"
-
-# Optimized multi-supplier search
-curl "http://localhost:8080/api/search/supplier?supplierIds=12345,67890,11111&limit=100"
-
-# Search by single supplier ID (database)
-curl "http://localhost:8080/api/products/supplier/12345"
-
-# Search by multiple supplier IDs (path variable)
-curl "http://localhost:8080/api/products/suppliers/12345,67890,11111"
-
-# Search by multiple supplier IDs (query parameter)
-curl "http://localhost:8080/api/products/suppliers?suppliers=12345,67890,11111"
-
-# Compare performance
-curl "http://localhost:8080/api/search/compare?query=wine"
-
-# Database search (for comparison)
-curl "http://localhost:8080/api/search/database?query=wine&limit=10"
-```
 
 ## Configuration
 
@@ -107,7 +68,7 @@ java -Xms2g -Xmx6g -jar salesforce-poc-0.0.1-SNAPSHOT.jar
 
 ### Single Supplier Search
 ```bash
-curl "http://localhost:8080/api/products/supplier/12345"
+curl "http://localhost:8080/api/productBySupplier/12345"
 ```
 
 ### Multiple Supplier Search with Filters
@@ -125,90 +86,13 @@ curl "http://localhost:8080/api/productBySupplier/959609?itemDescriptionSearch=C
 curl "http://localhost:8080/api/productBySupplier/959609?limit=5"
 ```
 
-### General Search (all fields)
-```bash
-# Search by supplier ID (fastest)
-curl "http://localhost:8080/api/search/lucene?query=12345&limit=20"
-
-# Multi-supplier search (optimized)
-curl "http://localhost:8080/api/search/supplier?supplierIds=12345,67890,11111&limit=100"
-```
-
-### Specific Field Search
-```bash
-# Search by supplier (primary optimized field)
-curl "http://localhost:8080/api/search/lucene/field?field=supplier&query=12345&limit=10"
-
-# Search by product description
-curl "http://localhost:8080/api/search/lucene/field?field=itemDescription&query=premium&limit=15"
-```
-
-### Complex Queries
-Lucene supports advanced query syntax for supplier searches:
-```bash
-# Multiple suppliers (OR query)
-curl "http://localhost:8080/api/search/lucene?query=12345%20OR%2067890"
-
-# Specific supplier with wildcard
-curl "http://localhost:8080/api/search/lucene?query=1234*"
-
-# Range query for supplier IDs
-curl "http://localhost:8080/api/search/lucene?query=supplier:[10000%20TO%2020000]"
-```
-
-## Performance Monitoring
-
-### Index Statistics
-```bash
-curl "http://localhost:8080/api/search/index/stats"
-```
-
-### Performance Comparison
-```bash
-curl "http://localhost:8080/api/search/compare?query=searchTerm"
-```
-
-Response includes:
-- Execution time for both methods
-- Result counts
-- Speed improvement factor
-
 ## Database Access
 H2 Console available at: `http://localhost:8080/h2-console`
 - JDBC URL: `jdbc:h2:file:./data/productdb`
 - Username: `sa`
 - Password: (empty)
 
-## File Structure
-```
-src/
-├── main/
-│   ├── java/com/example/salesforcepoc/
-│   │   ├── controller/
-│   │   │   ├── ProductController.java
-│   │   │   └── SearchController.java
-│   │   ├── entity/
-│   │   │   └── Product.java
-│   │   ├── repository/
-│   │   │   └── ProductRepository.java
-│   │   ├── service/
-│   │   │   ├── ProductService.java
-│   │   │   ├── CsvImportService.java
-│   │   │   └── LuceneSearchService.java
-│   │   └── SalesforcePocApplication.java
-│   └── resources/
-│       ├── application.properties
-│       └── data-all.csv
-└── lucene-index/          # Generated Lucene index files
-```
-
 ## Troubleshooting
-
-### Index Issues
-If search returns no results, rebuild the index:
-```bash
-curl -X POST "http://localhost:8080/api/search/index/rebuild"
-```
 
 ### Memory Issues
 For large datasets, increase JVM heap size:
@@ -216,11 +100,6 @@ For large datasets, increase JVM heap size:
 export MAVEN_OPTS="-Xms2g -Xmx6g"
 mvn spring-boot:run
 ```
-
-### Performance Issues
-- Ensure index is built: Check `/api/search/index/stats`
-- Monitor connection pool: Check application logs
-- Use field-specific searches when possible for better performance
 
 ## Resource Requirements
 
