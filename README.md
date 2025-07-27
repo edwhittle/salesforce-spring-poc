@@ -51,6 +51,12 @@ mvn spring-boot:run
 - Build Lucene search index
 - Start web server on port 8080
 
+## Docker
+The containerisation of this application is based upon the `azul/zulu-openjdk:21` image.
+- To build the container, run `docker build -t springio/salesforce-poc-springboot .`
+- To start the container, run `docker run -p 8080:8080 -t springio/salesforce-poc-springboot`
+
+
 
 ## Configuration
 
