@@ -1,12 +1,13 @@
 package com.example.salesforcepoc.repository;
 
-import com.example.salesforcepoc.entity.Product;
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
+import com.example.salesforcepoc.entity.Product;
 
 @Repository
 public interface ProductRepository extends JpaRepository<Product, String> {
@@ -20,15 +21,4 @@ public interface ProductRepository extends JpaRepository<Product, String> {
     
     // Required for SearchController - find product by productId
     Product findByProductId(String productId);
-    
-    // Required for SearchController database search comparison
-    @Query("SELECT p FROM Product p WHERE " +
-           "LOWER(p.productId) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-           "LOWER(p.supplier) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-           "LOWER(p.itemDescription) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-           "LOWER(p.digitalBrandName) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-           "LOWER(p.subBrandName) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-           "LOWER(p.smktsMerchCategory) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-           "LOWER(p.liqMerchCategory) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
-    List<Product> searchProducts(@Param("searchTerm") String searchTerm);
 }

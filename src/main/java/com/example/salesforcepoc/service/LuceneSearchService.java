@@ -1,8 +1,11 @@
 package com.example.salesforcepoc.service;
 
-import com.example.salesforcepoc.entity.Product;
-import com.example.salesforcepoc.common.QueryResults;
-import com.example.salesforcepoc.common.BrandCategoryResults;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -13,20 +16,21 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.queryparser.classic.QueryParser;
-import org.apache.lucene.search.*;
+import org.apache.lucene.search.BooleanClause;
+import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.ScoreDoc;
+import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.FSDirectory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.example.salesforcepoc.common.QueryResults;
+import com.example.salesforcepoc.entity.Product;
+
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
-import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 
 @Service
 public class LuceneSearchService {
@@ -144,22 +148,19 @@ public class LuceneSearchService {
             return new ArrayList<>();
         }
 
-        IndexReader reader = DirectoryReader.open(indexDirectory);
-        IndexSearcher searcher = new IndexSearcher(reader);
-        
-        // Default search focuses on supplier field
-        QueryParser parser = new QueryParser("supplier", analyzer);
-        Query query = parser.parse(searchText.trim());
-        
-        TopDocs results = searcher.search(query, maxResults);
-        List<String> productIds = new ArrayList<>();
-        
-        for (ScoreDoc scoreDoc : results.scoreDocs) {
-            Document doc = searcher.doc(scoreDoc.doc);
-            productIds.add(doc.get("productId"));
+        List<String> productIds;
+        try (IndexReader reader = DirectoryReader.open(indexDirectory)) {
+            IndexSearcher searcher = new IndexSearcher(reader);
+            // Default search focuses on supplier field
+            QueryParser parser = new QueryParser("supplier", analyzer);
+            Query query = parser.parse(searchText.trim());
+            TopDocs results = searcher.search(query, maxResults);
+            productIds = new ArrayList<>();
+            for (ScoreDoc scoreDoc : results.scoreDocs) {
+                Document doc = searcher.doc(scoreDoc.doc);
+                productIds.add(doc.get("productId"));
+            }
         }
-        
-        reader.close();
         return productIds;
     }
 
@@ -171,37 +172,32 @@ public class LuceneSearchService {
             return new ArrayList<>();
         }
 
-        IndexReader reader = DirectoryReader.open(indexDirectory);
-        IndexSearcher searcher = new IndexSearcher(reader);
-        
-        // For multiple supplier IDs, create an OR query
-        String queryString;
-        if (supplierIds.contains(",")) {
-            // Multiple suppliers: "supplier1 OR supplier2 OR supplier3"
-            String[] suppliers = supplierIds.split(",");
-            StringBuilder queryBuilder = new StringBuilder();
-            for (int i = 0; i < suppliers.length; i++) {
-                if (i > 0) queryBuilder.append(" OR ");
-                queryBuilder.append(suppliers[i].trim());
+        List<String> productIds;
+        try (IndexReader reader = DirectoryReader.open(indexDirectory)) {
+            IndexSearcher searcher = new IndexSearcher(reader);
+            // For multiple supplier IDs, create an OR query
+            String queryString;
+            if (supplierIds.contains(",")) {
+                // Multiple suppliers: "supplier1 OR supplier2 OR supplier3"
+                String[] suppliers = supplierIds.split(",");
+                StringBuilder queryBuilder = new StringBuilder();
+                for (int i = 0; i < suppliers.length; i++) {
+                    if (i > 0) queryBuilder.append(" OR ");
+                    queryBuilder.append(suppliers[i].trim());
+                }
+                queryString = queryBuilder.toString();
+            } else {
+                // Single supplier
+                queryString = supplierIds.trim();
+            }   QueryParser parser = new QueryParser("supplier", analyzer);
+            Query query = parser.parse(queryString);
+            TopDocs results = searcher.search(query, maxResults);
+            productIds = new ArrayList<>();
+            for (ScoreDoc scoreDoc : results.scoreDocs) {
+                Document doc = searcher.doc(scoreDoc.doc);
+                productIds.add(doc.get("productId"));
             }
-            queryString = queryBuilder.toString();
-        } else {
-            // Single supplier
-            queryString = supplierIds.trim();
         }
-        
-        QueryParser parser = new QueryParser("supplier", analyzer);
-        Query query = parser.parse(queryString);
-        
-        TopDocs results = searcher.search(query, maxResults);
-        List<String> productIds = new ArrayList<>();
-        
-        for (ScoreDoc scoreDoc : results.scoreDocs) {
-            Document doc = searcher.doc(scoreDoc.doc);
-            productIds.add(doc.get("productId"));
-        }
-        
-        reader.close();
         return productIds;
     }
 
@@ -217,59 +213,51 @@ public class LuceneSearchService {
             );
         }
 
-        IndexReader reader = DirectoryReader.open(indexDirectory);
-        IndexSearcher searcher = new IndexSearcher(reader);
-        
-        BooleanQuery.Builder queryBuilder = new BooleanQuery.Builder();
-        
-        // Add supplier query (required)
-        QueryParser supplierParser = new QueryParser("supplier", analyzer);
-        String supplierQueryString;
-        if (supplierIds.contains(",")) {
-            // Multiple suppliers: "supplier1 OR supplier2 OR supplier3"
-            String[] suppliers = supplierIds.split(",");
-            StringBuilder supplierQueryBuilder = new StringBuilder();
-            for (int i = 0; i < suppliers.length; i++) {
-                if (i > 0) supplierQueryBuilder.append(" OR ");
-                supplierQueryBuilder.append("\"").append(suppliers[i].trim()).append("\"");
+        Integer matchingResultsCount;
+        List<String> productIds;
+        try (IndexReader reader = DirectoryReader.open(indexDirectory)) {
+            IndexSearcher searcher = new IndexSearcher(reader);
+            BooleanQuery.Builder queryBuilder = new BooleanQuery.Builder();
+            // Add supplier query (required)
+            QueryParser supplierParser = new QueryParser("supplier", analyzer);
+            String supplierQueryString;
+            if (supplierIds.contains(",")) {
+                // Multiple suppliers: "supplier1 OR supplier2 OR supplier3"
+                String[] suppliers = supplierIds.split(",");
+                StringBuilder supplierQueryBuilder = new StringBuilder();
+                for (int i = 0; i < suppliers.length; i++) {
+                    if (i > 0) supplierQueryBuilder.append(" OR ");
+                    supplierQueryBuilder.append("\"").append(suppliers[i].trim()).append("\"");
+                }
+                supplierQueryString = supplierQueryBuilder.toString();
+            } else {
+                // Single supplier
+                supplierQueryString = "\"" + supplierIds.trim() + "\"";
+            }   Query supplierQuery = supplierParser.parse(supplierQueryString);
+            queryBuilder.add(supplierQuery, BooleanClause.Occur.MUST);
+            // Add brand search if provided
+            if (brandSearch != null && !brandSearch.trim().isEmpty()) {
+                QueryParser brandParser = new QueryParser("brand", analyzer);
+                // Create fuzzy query for brand search
+                String fuzzyBrandQuery = createFuzzyQuery(brandSearch.trim());
+                Query brandQuery = brandParser.parse(fuzzyBrandQuery);
+                queryBuilder.add(brandQuery, BooleanClause.Occur.MUST);
+            }   // Add item description search if provided (fuzzy search)
+            if (itemDescriptionSearch != null && !itemDescriptionSearch.trim().isEmpty()) {
+                QueryParser descParser = new QueryParser("itemDescription", analyzer);
+                // Create fuzzy query for item description
+                String fuzzyDescQuery = createFuzzyQuery(itemDescriptionSearch.trim());
+                Query descQuery = descParser.parse(fuzzyDescQuery);
+                queryBuilder.add(descQuery, BooleanClause.Occur.MUST);
+            }   BooleanQuery finalQuery = queryBuilder.build();
+            matchingResultsCount = searcher.count(finalQuery);
+            TopDocs results = searcher.search(finalQuery, maxResults);
+            productIds = new ArrayList<>();
+            for (ScoreDoc scoreDoc : results.scoreDocs) {
+                Document doc = searcher.doc(scoreDoc.doc);
+                productIds.add(doc.get("productId"));
             }
-            supplierQueryString = supplierQueryBuilder.toString();
-        } else {
-            // Single supplier
-            supplierQueryString = "\"" + supplierIds.trim() + "\"";
         }
-        Query supplierQuery = supplierParser.parse(supplierQueryString);
-        queryBuilder.add(supplierQuery, BooleanClause.Occur.MUST);
-        
-        // Add brand search if provided
-        if (brandSearch != null && !brandSearch.trim().isEmpty()) {
-            QueryParser brandParser = new QueryParser("brand", analyzer);
-            // Create fuzzy query for brand search
-            String fuzzyBrandQuery = createFuzzyQuery(brandSearch.trim());
-            Query brandQuery = brandParser.parse(fuzzyBrandQuery);
-            queryBuilder.add(brandQuery, BooleanClause.Occur.MUST);
-        }
-        
-        // Add item description search if provided (fuzzy search)
-        if (itemDescriptionSearch != null && !itemDescriptionSearch.trim().isEmpty()) {
-            QueryParser descParser = new QueryParser("itemDescription", analyzer);
-            // Create fuzzy query for item description
-            String fuzzyDescQuery = createFuzzyQuery(itemDescriptionSearch.trim());
-            Query descQuery = descParser.parse(fuzzyDescQuery);
-            queryBuilder.add(descQuery, BooleanClause.Occur.MUST);
-        }
-        
-        BooleanQuery finalQuery = queryBuilder.build();
-        Integer matchingResultsCount = searcher.count(finalQuery);
-        TopDocs results = searcher.search(finalQuery, maxResults);
-        List<String> productIds = new ArrayList<>();
-        
-        for (ScoreDoc scoreDoc : results.scoreDocs) {
-            Document doc = searcher.doc(scoreDoc.doc);
-            productIds.add(doc.get("productId"));
-        }
-        
-        reader.close();
 
         QueryResults queryResults = new QueryResults(productIds, matchingResultsCount);
         return queryResults;
@@ -301,21 +289,18 @@ public class LuceneSearchService {
             return new ArrayList<>();
         }
 
-        IndexReader reader = DirectoryReader.open(indexDirectory);
-        IndexSearcher searcher = new IndexSearcher(reader);
-        
-        QueryParser parser = new QueryParser(fieldName, analyzer);
-        Query query = parser.parse(searchText.trim());
-        
-        TopDocs results = searcher.search(query, maxResults);
-        List<String> productIds = new ArrayList<>();
-        
-        for (ScoreDoc scoreDoc : results.scoreDocs) {
-            Document doc = searcher.doc(scoreDoc.doc);
-            productIds.add(doc.get("productId"));
+        List<String> productIds;
+        try (IndexReader reader = DirectoryReader.open(indexDirectory)) {
+            IndexSearcher searcher = new IndexSearcher(reader);
+            QueryParser parser = new QueryParser(fieldName, analyzer);
+            Query query = parser.parse(searchText.trim());
+            TopDocs results = searcher.search(query, maxResults);
+            productIds = new ArrayList<>();
+            for (ScoreDoc scoreDoc : results.scoreDocs) {
+                Document doc = searcher.doc(scoreDoc.doc);
+                productIds.add(doc.get("productId"));
+            }
         }
-        
-        reader.close();
         return productIds;
     }
 
@@ -323,9 +308,10 @@ public class LuceneSearchService {
      * Get index statistics
      */
     public String getIndexStats() throws IOException {
-        IndexReader reader = DirectoryReader.open(indexDirectory);
-        int numDocs = reader.numDocs();
-        reader.close();
+        int numDocs;
+        try (IndexReader reader = DirectoryReader.open(indexDirectory)) {
+            numDocs = reader.numDocs();
+        }
         return "Lucene index contains " + numDocs + " documents";
     }
 }

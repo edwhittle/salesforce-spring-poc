@@ -2,3 +2,5 @@ lucene-index
 settings.json
 target
 data
+
+.DS_Store

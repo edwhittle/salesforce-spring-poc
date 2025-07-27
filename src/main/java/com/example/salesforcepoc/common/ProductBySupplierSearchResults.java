@@ -4,7 +4,7 @@ import java.util.List;
 
 import com.example.salesforcepoc.entity.Product;
 
-public class BrandCategoryResults {
+public class ProductBySupplierSearchResults {
     
     private List<Product> products;
     private int totalCount;
@@ -12,10 +12,10 @@ public class BrandCategoryResults {
     private List<String> categories;
     
     // Default constructor
-    public BrandCategoryResults() {}
+    public ProductBySupplierSearchResults() {}
     
     // Constructor
-    public BrandCategoryResults(List<Product> products, int totalCount, List<String> brands, List<String> categories) {
+    public ProductBySupplierSearchResults(List<Product> products, int totalCount, List<String> brands, List<String> categories) {
         this.products = products;
         this.totalCount = totalCount;
         this.brands = brands;

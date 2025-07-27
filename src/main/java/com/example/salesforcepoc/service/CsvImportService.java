@@ -1,17 +1,19 @@
 package com.example.salesforcepoc.service;
 
-import com.example.salesforcepoc.entity.Product;
-import com.example.salesforcepoc.repository.ProductRepository;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
+import com.example.salesforcepoc.entity.Product;
+import com.example.salesforcepoc.repository.ProductRepository;
 
 @Service
 public class CsvImportService implements CommandLineRunner {
@@ -146,9 +148,8 @@ public class CsvImportService implements CommandLineRunner {
                 System.out.println("Lucene indexing completed in " + (indexEndTime - indexStartTime) + "ms");
                 
             }
-        } catch (Exception e) {
+        } catch (IOException e) {
             System.err.println("Error importing CSV: " + e.getMessage());
-            e.printStackTrace();
         }
     }
     

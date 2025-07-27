@@ -1,12 +1,13 @@
 package com.example.salesforcepoc.service;
 
-import com.example.salesforcepoc.entity.Product;
-import com.example.salesforcepoc.repository.ProductRepository;
+import java.util.Arrays;
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.Arrays;
-import java.util.List;
+import com.example.salesforcepoc.entity.Product;
+import com.example.salesforcepoc.repository.ProductRepository;
 
 @Service
 public class ProductService {
@@ -19,14 +20,9 @@ public class ProductService {
         return productRepository.findAll();
     }
     
-    // Required for SearchController 
+    // Required for ProductController 
     public Product getProductByProductId(String productId) {
         return productRepository.findByProductId(productId);
-    }
-    
-    // Required for SearchController database search comparison
-    public List<Product> searchProducts(String searchTerm) {
-        return productRepository.searchProducts(searchTerm);
     }
     
     // Main business logic method - search by single supplier

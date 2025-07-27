@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.salesforcepoc.common.BrandCategoryResults;
+import com.example.salesforcepoc.common.ProductBySupplierSearchResults;
 import com.example.salesforcepoc.common.QueryResults;
 import com.example.salesforcepoc.entity.Product;
 import com.example.salesforcepoc.service.LuceneSearchService;
@@ -29,7 +29,7 @@ public class ProductController {
     private LuceneSearchService luceneSearchService;
     
     @GetMapping("/productBySupplier/{supplierIds}")
-    public BrandCategoryResults getProductsBySupplierWithFilters(
+    public ProductBySupplierSearchResults getProductsBySupplierWithFilters(
             @PathVariable String supplierIds,
             @RequestParam(required = false) String brandSearch,
             @RequestParam(required = false) String itemDescriptionSearch,
@@ -83,7 +83,7 @@ public class ProductController {
                 (itemDescriptionSearch != null ? ", Description: " + itemDescriptionSearch : "") +
                 ". Found " + products.size() + " results.");
 
-            BrandCategoryResults results = new BrandCategoryResults(
+            ProductBySupplierSearchResults results = new ProductBySupplierSearchResults(
                 products, 
                 queryResults.getMatchingResultsCount(),
                 new ArrayList<>(uniqueBrands),
@@ -94,7 +94,7 @@ public class ProductController {
             
         } catch (Exception e) {
             System.err.println("Error in getProductsBySupplierWithFilters: " + e.getMessage());
-            return new BrandCategoryResults(
+            return new ProductBySupplierSearchResults(
                 new ArrayList<>(),
                 0,
                 new ArrayList<>(),
