@@ -45,13 +45,18 @@ public class LuceneSearchService {
 
     @PostConstruct
     public void init() throws IOException {
+        try {
         analyzer = new StandardAnalyzer();
         Path indexPath = Paths.get(INDEX_DIRECTORY);
         indexDirectory = FSDirectory.open(indexPath);
-        
+
         IndexWriterConfig config = new IndexWriterConfig(analyzer);
         config.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
         indexWriter = new IndexWriter(indexDirectory, config);
+        } catch (IOException e) {
+            System.err.println("Error initializing Lucene index: " + e.getMessage());
+            throw e;
+        }
     }
 
     @PreDestroy
@@ -99,7 +104,7 @@ public class LuceneSearchService {
     /**
      * Index a single product - optimized for supplier-based searches with brand and description support
      */
-    public void indexProduct(Product product) throws IOException {
+    public synchronized void indexProduct(Product product) throws IOException {
         Document doc = new Document();
         
         // Store the product ID for retrieval
